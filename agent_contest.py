@@ -1,8 +1,35 @@
 # tournament.py
 import itertools
 from environnement.marelle_env import MarelleEnv
-from marelle_agents.agents import agent_random, agent_defensif, agent_offensif, smart_agent
+from marelle_agents.agents import BaseAgent
+from marelle_agents.strategies import SmartPlacement, SmartRemoval, ModelStrategy, greedy_placement, block_opponent
 
+
+# Agent totalement random
+agent_random = BaseAgent(player_id=1, name = "dumb")
+
+# Agent offensif qui retire intelligemment
+agent_offensif = BaseAgent(
+    player_id=1,
+    placement_strategy=greedy_placement,
+    removal_strategy=SmartRemoval(1),
+    name = "offensif"
+)
+
+# Agent défensif qui bloque et retire au hasard
+agent_defensif = BaseAgent(
+    player_id=-1,
+    placement_strategy=block_opponent,
+    removal_strategy=None,
+    name ="defensif"
+)
+
+smart_agent = BaseAgent(
+    player_id=1,
+    placement_strategy=SmartPlacement(1),
+    removal_strategy=SmartRemoval(1),
+    name = "smart"
+)
 
 def play_match(agent1, agent2, num_games=100):
     """Joue num_games parties entre deux agents et renvoie (victoires_agent1, victoires_agent2, nuls)"""
@@ -64,4 +91,4 @@ def tournament(agent_list, num_games=100):
 
 if __name__ == "__main__":
     agent_list = [agent_random, agent_defensif, agent_offensif, smart_agent]
-    tournament(agent_list, num_games=1000)
+    tournament(agent_list, num_games=2000)

@@ -1,10 +1,50 @@
 from environnement.marelle_env import MarelleEnv
 from environnement.visualisation import plot_marelle
 from environnement.play_with_click import play_with_clicks, play_with_clicks_against_agent
-from marelle_agents.agents import agent_defensif, agent_offensif, agent_random, smart_agent
+from marelle_agents.agents import BaseAgent
+from marelle_agents.strategies import greedy_placement, SmartRemoval, SmartPlacement, block_opponent, ModelStrategy
+from marelle_agents.modeles import MarelleDualHeadNet
+
 import random
 import matplotlib.pyplot as plt
 
+import torch
+# Agent totalement random
+agent_random = BaseAgent(player_id=1, name = "dumb")
+
+# Agent offensif qui retire intelligemment
+agent_offensif = BaseAgent(
+    player_id=1,
+    placement_strategy=greedy_placement,
+    removal_strategy=SmartRemoval(1),
+    name = "offensif"
+)
+
+# Agent défensif qui bloque et retire au hasard
+agent_defensif = BaseAgent(
+    player_id=-1,
+    placement_strategy=block_opponent,
+    removal_strategy=None,
+    name ="defensif"
+)
+
+smart_agent = BaseAgent(
+    player_id=1,
+    placement_strategy=SmartPlacement(1),
+    removal_strategy=SmartRemoval(1),
+    name = "smart"
+)
+
+
+model = MarelleDualHeadNet()
+device_detected = "cuda" if torch.cuda.is_available() else "cpu"
+
+agent_ml = BaseAgent(
+    player_id=1,
+    placement_strategy=ModelStrategy(model, 1, mode="placement", device= device_detected),
+    removal_strategy=ModelStrategy(model, 1, mode="removal", device =device_detected),
+    name="ML Agent"
+)
 def main():
     print("=== JEU DE LA MARELLE ===")
     print("1. Mode automatique (simulation)")
@@ -13,8 +53,9 @@ def main():
     print("4. Jouer contre GreedyAgent")
     print("5. Jouer contre DefensiveAgent")
     print("6. Jouer contre SmartAgent")
+    print("7. Modèle ML !")
     
-    choice = input("Choisissez le mode (1-6): ")
+    choice = input("Choisissez le mode (1-7): ")
     
     if choice == "1":
         # Mode automatique
@@ -65,6 +106,12 @@ def main():
         print("Vous jouez contre SmartAgent (Rouge)")
         plt.close('all')
         play_with_clicks_against_agent(smart_agent, 1)
+    
+    elif choice == "7":
+        # Contre SmartAgent
+        print("Vous jouez contre le modèle ! (Rouge)")
+        plt.close('all')
+        play_with_clicks_against_agent(agent_ml, 1)
         
     else:
         print("Choix invalide")

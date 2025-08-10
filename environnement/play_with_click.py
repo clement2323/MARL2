@@ -1,12 +1,10 @@
 import matplotlib.pyplot as plt
 import networkx as nx
 from environnement.visualisation import plot_marelle  # à adapter à ton projet
-
+from environnement.marelle_env import MarelleEnv
 
 def play_with_clicks():
-    """Fonction pour jouer interactivement avec des clics de souris"""
-    from environnement.marelle_env import MarelleEnv
-    
+
     env = MarelleEnv()
     fig, ax = plt.subplots(figsize=(10, 10))
     
@@ -67,13 +65,31 @@ def play_with_clicks_against_agent(agent, agent_player=1):
     """
     Jouer contre un agent (objet BaseAgent avec placement_strategy et removal_strategy)
     """
-    from environnement.marelle_env import MarelleEnv
     
     env = MarelleEnv()
     human_player = -agent_player
     
     fig, ax = plt.subplots(figsize=(10, 10))
     
+    def show_phase1_end_message(env, ax):
+        """Affiche un message à la fin de la phase 1 avec le différentiel de pions."""
+        red_pawns = sum(1 for _, data in env.G.nodes(data=True) if data["state"] == 1)
+        blue_pawns = sum(1 for _, data in env.G.nodes(data=True) if data["state"] == -1)
+        diff = red_pawns - blue_pawns
+
+        if diff > 0:
+            leader = "Rouge"
+        elif diff < 0:
+            leader = "Bleu"
+        else:
+            leader = "Égalité"
+
+        ax.clear()
+        plot_marelle(env.G, env.moves, ax, env.get_removable_pawns())
+        plt.title(f" Fin de la phase 1 ! Leader : {leader} | Différentiel : {diff} (Rouge: {red_pawns}, Bleu: {blue_pawns})")
+        plt.draw()
+
+
     def force_agent_turn():
         """Fait jouer l'agent tant que c'est son tour"""
         while env.current_player == agent_player and not env.is_phase1_over():
@@ -91,7 +107,12 @@ def play_with_clicks_against_agent(agent, agent_player=1):
                     print(f"L'agent a joué sur la position {agent_move}")
                 else:
                     break
-    
+
+            if env.is_phase1_over():  # ⬅️ Vérification fin phase 1
+                show_phase1_end_message(env, ax)
+                return
+
+
     def on_click(event):
         if event.inaxes != ax:
             return
@@ -120,6 +141,9 @@ def play_with_clicks_against_agent(agent, agent_player=1):
             if closest_node in env.get_removable_pawns():
                 env.remove_pawn(closest_node)
                 print(f"Vous avez retiré le pion en {closest_node}")
+                if env.is_phase1_over():
+                    show_phase1_end_message(env, ax)
+                    return
                 force_agent_turn()
             else:
                 print("Position invalide pour suppression")
@@ -127,22 +151,27 @@ def play_with_clicks_against_agent(agent, agent_player=1):
         elif env.G.nodes[closest_node]["state"] == 0:
             env.play_move(closest_node)
             print(f"Vous avez placé un pion en {closest_node}")
+            if env.is_phase1_over():
+                show_phase1_end_message(env, ax)
+                return
             force_agent_turn()
         else:
             print("Position déjà occupée")
         
-        # Rafraîchir affichage
-        ax.clear()
-        plot_marelle(env.G, env.moves, ax, env.get_removable_pawns())
-        
-        if env.waiting_for_removal:
-            current = "Vous" if env.current_player == human_player else "Agent"
-            plt.title(f"⚡ Moulin formé par {current} ! Cliquez sur un pion adverse à retirer")
-        else:
-            current = "Vous" if env.current_player == human_player else "Agent"
-            plt.title(f"Tour de {current} (Rouge: {env.pawns_to_place[1]} jetons, Bleu: {env.pawns_to_place[-1]} jetons)")
-        
-        plt.draw()
+        # Rafraîchir affichage si pas fin
+        if not env.is_phase1_over():
+            ax.clear()
+            plot_marelle(env.G, env.moves, ax, env.get_removable_pawns())
+            
+            if env.waiting_for_removal:
+                current = "Vous" if env.current_player == human_player else "Agent"
+                plt.title(f"⚡ Moulin formé par {current} ! Cliquez sur un pion adverse à retirer")
+            else:
+                current = "Vous" if env.current_player == human_player else "Agent"
+                plt.title(f"Tour de {current} (Rouge: {env.pawns_to_place[1]} jetons, Bleu: {env.pawns_to_place[-1]} jetons)")
+            
+            plt.draw()
+
     
     ax.figure.canvas.mpl_connect('button_press_event', on_click)
     plot_marelle(env.G, env.moves, ax, env.get_removable_pawns())
