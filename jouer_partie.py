@@ -8,48 +8,8 @@ from marelle_agents.modeles import MarelleDualHeadNet
 import random
 import matplotlib.pyplot as plt
 
-import torch
-# Agent totalement random
-agent_random = BaseAgent(player_id=1, name = "dumb")
+from marelle_agents.agent_configs import AGENTS
 
-# Agent offensif qui retire intelligemment
-agent_offensif = BaseAgent(
-    player_id=1,
-    placement_strategy=greedy_placement,
-    removal_strategy=SmartRemoval(1),
-    name = "offensif"
-)
-
-# Agent défensif qui bloque et retire au hasard
-agent_defensif = BaseAgent(
-    player_id=-1,
-    placement_strategy=block_opponent,
-    removal_strategy=None,
-    name ="defensif"
-)
-
-smart_agent = BaseAgent(
-    player_id=1,
-    placement_strategy=SmartPlacement(1),
-    removal_strategy=SmartRemoval(1),
-    name = "smart"
-)
-
-
-model = MarelleDualHeadNet()
-device_detected = "cuda" if torch.cuda.is_available() else "cpu"
-
-# Charger le modèle entraîné
-model.load_state_dict(torch.load("marelle_model_final.pth", map_location=device_detected))
-model.to(device_detected)
-model.eval()  # Mode évaluation
-
-agent_ml = BaseAgent(
-    player_id=1,
-    placement_strategy=ModelStrategy(model, 1, mode="placement", device=device_detected),
-    removal_strategy=ModelStrategy(model, 1, mode="removal", device=device_detected),
-    name="ML Agent"
-)
 def main():
     print("=== JEU DE LA MARELLE ===")
     print("1. Mode automatique (simulation)")
@@ -69,7 +29,7 @@ def main():
         
         plt.close('all')
         
-        while not env.is_full() and not env.is_phase1_over():
+        while not env.is_phase1_over():
             move = random.choice(env.get_legal_moves())
             env.play_move(move)
             print(f"Joueur {env.current_player * -1} joue sur la position {move}")
@@ -91,32 +51,32 @@ def main():
         # Contre RandomAgent
         print("Vous jouez contre RandomAgent (Rouge)")
         plt.close('all')
-        play_with_clicks_against_agent(agent_random, 1)
+        play_with_clicks_against_agent(AGENTS["random"](), 1)
         
     elif choice == "4":
         # Contre GreedyAgent
         print("Vous jouez contre GreedyAgent (Rouge)")
         plt.close('all')
-        play_with_clicks_against_agent(agent_offensif, 1)
+        play_with_clicks_against_agent(AGENTS["offensif"](), 1)
         
     elif choice == "5":
         # Contre DefensiveAgent
         print("Vous jouez contre DefensiveAgent (Rouge)")
         plt.close('all')
         play_with_clicks_against_agent(
-            agent_defensif, 1)
+            AGENTS["defensif"](), 1)
         
     elif choice == "6":
         # Contre SmartAgent
         print("Vous jouez contre SmartAgent (Rouge)")
         plt.close('all')
-        play_with_clicks_against_agent(smart_agent, 1)
+        play_with_clicks_against_agent(AGENTS["smart"](), 1)
     
     elif choice == "7":
         # Contre SmartAgent
         print("Vous jouez contre le modèle ! (Rouge)")
         plt.close('all')
-        play_with_clicks_against_agent(agent_ml, 1)
+        play_with_clicks_against_agent(AGENTS["ml"](), 1)
         
     else:
         print("Choix invalide")

@@ -138,6 +138,7 @@ def play_with_clicks_against_agent(agent, agent_player=1):
             
         # Suppression
         if env.waiting_for_removal:
+            print(closest_node)
             if closest_node in env.get_removable_pawns():
                 env.remove_pawn(closest_node)
                 print(f"Vous avez retiré le pion en {closest_node}")

@@ -3,49 +3,16 @@ import itertools
 from environnement.marelle_env import MarelleEnv
 from marelle_agents.agents import BaseAgent
 from marelle_agents.strategies import SmartPlacement, SmartRemoval, ModelStrategy, greedy_placement, block_opponent
-
-import torch
 from marelle_agents.modeles import MarelleDualHeadNet
+from marelle_agents.agent_configs import AGENTS
+
 # Agent totalement random
-agent_random = BaseAgent(player_id=1, name = "dumb")
+agent_random = AGENTS["random"]()
+agent_offensif = AGENTS["offensif"]()
+agent_defensif = AGENTS["defensif"]()
+smart_agent = AGENTS["smart"]()
+agent_ml= AGENTS["ml"]()
 
-# Agent offensif qui retire intelligemment
-agent_offensif = BaseAgent(
-    player_id=1,
-    placement_strategy=greedy_placement,
-    removal_strategy=SmartRemoval(1),
-    name = "offensif"
-)
-
-# Agent défensif qui bloque et retire au hasard
-agent_defensif = BaseAgent(
-    player_id=-1,
-    placement_strategy=block_opponent,
-    removal_strategy=None,
-    name ="defensif"
-)
-
-smart_agent = BaseAgent(
-    player_id=1,
-    placement_strategy=SmartPlacement(1),
-    removal_strategy=SmartRemoval(1),
-    name = "smart"
-)
-
-model = MarelleDualHeadNet()
-device_detected = "cuda" if torch.cuda.is_available() else "cpu"
-
-# Charger le modèle entraîné
-model.load_state_dict(torch.load("marelle_model_final.pth", map_location=device_detected))
-model.to(device_detected)
-model.eval()  # Mode évaluation
-
-agent_ml = BaseAgent(
-    player_id=1,
-    placement_strategy=ModelStrategy(model, 1, mode="placement", device=device_detected),
-    removal_strategy=ModelStrategy(model, 1, mode="removal", device=device_detected),
-    name="ML Agent"
-)
 def play_match(agent1, agent2, num_games=1000):
     """Joue num_games parties entre deux agents et renvoie (victoires_agent1, victoires_agent2, nuls)"""
     results = {1: 0, -1: 0, 0: 0}  # 1 = agent1 gagne, -1 = agent2 gagne, 0 = nul

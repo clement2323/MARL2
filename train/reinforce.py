@@ -13,9 +13,11 @@ from marelle_agents.agents import BaseAgent
 from marelle_agents.strategies import ModelStrategy, greedy_placement, SmartRemoval
 from marelle_agents.modeles import MarelleDualHeadNet
 from environnement.marelle_env import MarelleEnv
+from marelle_agents.agent_configs import AGENTS
 
 
-def train_reinforce(env, model, num_episodes=1000, lr=0.001):
+
+def train_reinforce(env, model, agent_contre, num_episodes=1000, lr=0.001):
     optimizer = optim.Adam(model.parameters(), lr=lr)
     gamma = 0.99
 
@@ -35,17 +37,6 @@ def train_reinforce(env, model, num_episodes=1000, lr=0.001):
         placement_strategy = ModelStrategy(model, player_id=1, mode="placement", device=device_selected)
         removal_strategy = ModelStrategy(model, player_id=1, mode="removal", device=device_selected)
         agent_ml = BaseAgent(1, placement_strategy, removal_strategy)
-
-        # Agent adverse (offensif)
-        agent_contre = BaseAgent(
-            player_id=-1,
-            placement_strategy=greedy_placement,
-            removal_strategy=SmartRemoval(-1),
-            name="offensif"
-        )
-
-        agent_contre = BaseAgent(player_id=1, name = "dumb")
-
 
         log_probs, rewards = [], []
 
@@ -120,8 +111,43 @@ def train_reinforce(env, model, num_episodes=1000, lr=0.001):
 
     return model
 
+def load_trained_model(model_path="marelle_model_final.pth", device=None):
+    """Charge un modèle entraîné depuis un fichier."""
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    model = MarelleDualHeadNet()
+    model.load_state_dict(torch.load(model_path, map_location=device))
+    model.to(device)
+    model.train()
+
+    return model
+
+def train_against_multiple_agents(model, agents_to_train_against, episodes_per_agent=5000):
+    """Entraîne le modèle contre plusieurs agents successivement."""
+    for agent_name, agent_creator in agents_to_train_against.items():
+        print(f"\n🎯 Entraînement contre {agent_name}...")
+        
+        model = load_trained_model("marelle_model_final.pth")
+        trained_model = train_reinforce(
+            env=MarelleEnv(),
+            model=model,
+            agent_contre=agent_creator(),
+            num_episodes=episodes_per_agent
+        )
+        torch.save(trained_model.state_dict(), "marelle_model_final.pth")
+        
+        print(f"✅ Entraînement contre {agent_name} terminé")
 
 if __name__ == "__main__":
-    model = MarelleDualHeadNet()
-    trained_model = train_reinforce(env=MarelleEnv(), model=model, num_episodes=30000)
-    torch.save(trained_model.state_dict(), "marelle_model_final.pth")
+    # Configuration des agents d'entraînement
+    training_agents = {
+        "ml": AGENTS["ml"],
+        "smart": AGENTS["smart"], 
+        "ml_again": AGENTS["ml"],
+        "offensif": AGENTS["offensif"],
+        "ml_again2": AGENTS["ml"]
+    }
+    
+    # Entraînement séquentiel
+    train_against_multiple_agents(model=None, agents_to_train_against=training_agents)
