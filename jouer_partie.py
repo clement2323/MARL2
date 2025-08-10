@@ -1,6 +1,7 @@
-from marelle_env import MarelleEnv
-from visualisation import plot_marelle, play_with_clicks, play_with_clicks_against_agent
-from agents import RandomAgent, GreedyAgent, DefensiveAgent, SmartAgent
+from environnement.marelle_env import MarelleEnv
+from environnement.visualisation import plot_marelle
+from environnement.play_with_click import play_with_clicks, play_with_clicks_against_agent
+from marelle_agents.agents import agent_defensif, agent_offensif, agent_random, smart_agent
 import random
 import matplotlib.pyplot as plt
 
@@ -44,30 +45,32 @@ def main():
         # Contre RandomAgent
         print("Vous jouez contre RandomAgent (Rouge)")
         plt.close('all')
-        play_with_clicks_against_agent(RandomAgent, 1)
+        play_with_clicks_against_agent(agent_random, 1)
         
     elif choice == "4":
         # Contre GreedyAgent
         print("Vous jouez contre GreedyAgent (Rouge)")
         plt.close('all')
-        play_with_clicks_against_agent(GreedyAgent, 1)
+        play_with_clicks_against_agent(agent_offensif, 1)
         
     elif choice == "5":
         # Contre DefensiveAgent
         print("Vous jouez contre DefensiveAgent (Rouge)")
         plt.close('all')
-        play_with_clicks_against_agent(DefensiveAgent, 1)
+        play_with_clicks_against_agent(
+            agent_defensif, 1)
         
     elif choice == "6":
         # Contre SmartAgent
         print("Vous jouez contre SmartAgent (Rouge)")
         plt.close('all')
-        play_with_clicks_against_agent(SmartAgent, 1)
+        play_with_clicks_against_agent(smart_agent, 1)
         
     else:
         print("Choix invalide")
 
-main()
+if __name__ == "__main__":
+    main()
 
 
 

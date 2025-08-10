@@ -1,6 +1,6 @@
 # marelle_graph.py
 import networkx as nx
-from marelle_layout import marelle_layout
+from environnement.marelle_layout import marelle_layout
 
 def marelle_edges():
     # Arêtes le long de chaque carré (cycle) + les 4 colonnes de connexions ext->moy->int (top, right, bottom, left)

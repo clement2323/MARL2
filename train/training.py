@@ -6,7 +6,7 @@ import numpy as np
 import random
 from collections import deque
 import copy
-from marelle_env import MarelleEnv
+from environnement.marelle_env import MarelleEnv
 
 class MarelleDualHeadNetwork(nn.Module):
     """Réseau à deux têtes : placement et suppression"""
