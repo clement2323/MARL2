@@ -36,7 +36,7 @@ model = MarelleDualHeadNet()
 device_detected = "cuda" if torch.cuda.is_available() else "cpu"
 
 # Charger le modèle entraîné
-model.load_state_dict(torch.load("marelle_model_best.pth", map_location=device_detected))
+model.load_state_dict(torch.load("marelle_model_final.pth", map_location=device_detected))
 model.to(device_detected)
 model.eval()  # Mode évaluation
 
