@@ -4,7 +4,8 @@ from environnement.marelle_env import MarelleEnv
 from marelle_agents.agents import BaseAgent
 from marelle_agents.strategies import SmartPlacement, SmartRemoval, ModelStrategy, greedy_placement, block_opponent
 
-
+import torch
+from marelle_agents.modeles import MarelleDualHeadNet
 # Agent totalement random
 agent_random = BaseAgent(player_id=1, name = "dumb")
 
@@ -31,7 +32,21 @@ smart_agent = BaseAgent(
     name = "smart"
 )
 
-def play_match(agent1, agent2, num_games=100):
+model = MarelleDualHeadNet()
+device_detected = "cuda" if torch.cuda.is_available() else "cpu"
+
+# Charger le modèle entraîné
+model.load_state_dict(torch.load("marelle_model_best.pth", map_location=device_detected))
+model.to(device_detected)
+model.eval()  # Mode évaluation
+
+agent_ml = BaseAgent(
+    player_id=1,
+    placement_strategy=ModelStrategy(model, 1, mode="placement", device=device_detected),
+    removal_strategy=ModelStrategy(model, 1, mode="removal", device=device_detected),
+    name="ML Agent"
+)
+def play_match(agent1, agent2, num_games=1000):
     """Joue num_games parties entre deux agents et renvoie (victoires_agent1, victoires_agent2, nuls)"""
     results = {1: 0, -1: 0, 0: 0}  # 1 = agent1 gagne, -1 = agent2 gagne, 0 = nul
 
@@ -90,5 +105,5 @@ def tournament(agent_list, num_games=100):
 
 
 if __name__ == "__main__":
-    agent_list = [agent_random, agent_defensif, agent_offensif, smart_agent]
-    tournament(agent_list, num_games=2000)
+    agent_list = [agent_random, agent_defensif, agent_offensif, smart_agent, agent_ml]
+    tournament(agent_list, num_games=200)

@@ -105,5 +105,20 @@ class MarelleEnv:
     def is_phase1_over(self):
         return self.pawns_to_place[1] == 0 and self.pawns_to_place[-1] == 0
 
-    def is_full(self):
-        return all(data["state"] != 0 for _, data in self.G.nodes(data=True))
+    def get_winner(self):
+        """
+        Détermine le gagnant à tout moment.
+        Retourne :
+            1  -> joueur 1 gagne
+            -1 -> joueur 2 gagne
+            0  -> égalité
+        """
+        p1_pawns = sum(1 for _, data in self.G.nodes(data=True) if data["state"] == 1)
+        p2_pawns = sum(1 for _, data in self.G.nodes(data=True) if data["state"] == -1)
+
+        if p1_pawns > p2_pawns:
+            return 1
+        elif p2_pawns > p1_pawns:
+            return -1
+        else:
+            return 0

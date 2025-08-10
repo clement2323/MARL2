@@ -39,10 +39,15 @@ smart_agent = BaseAgent(
 model = MarelleDualHeadNet()
 device_detected = "cuda" if torch.cuda.is_available() else "cpu"
 
+# Charger le modèle entraîné
+model.load_state_dict(torch.load("marelle_model_final.pth", map_location=device_detected))
+model.to(device_detected)
+model.eval()  # Mode évaluation
+
 agent_ml = BaseAgent(
     player_id=1,
-    placement_strategy=ModelStrategy(model, 1, mode="placement", device= device_detected),
-    removal_strategy=ModelStrategy(model, 1, mode="removal", device =device_detected),
+    placement_strategy=ModelStrategy(model, 1, mode="placement", device=device_detected),
+    removal_strategy=ModelStrategy(model, 1, mode="removal", device=device_detected),
     name="ML Agent"
 )
 def main():
