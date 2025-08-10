@@ -99,16 +99,6 @@ def train_reinforce(env, model, agent_contre, num_episodes=1000, lr=0.001):
 
             print(f"[Episode {episode}] Avg Loss={avg_loss:.4f} Avg Win Rate={avg_win_rate:.2%}")
 
-            if avg_loss < best_loss:
-                best_loss = avg_loss
-                best_model_state = model.state_dict().copy()
-                torch.save(best_model_state, "marelle_model_best.pth")
-                print(f"🎯 Nouveau meilleur modèle ! Loss: {best_loss:.4f}")
-
-    if best_model_state is not None:
-        model.load_state_dict(best_model_state)
-        print(f"🏆 Modèle final chargé avec la meilleure Loss: {best_loss:.4f}")
-
     return model
 
 def load_trained_model(model_path="marelle_model_final.pth", device=None):
@@ -123,21 +113,25 @@ def load_trained_model(model_path="marelle_model_final.pth", device=None):
 
     return model
 
-def train_against_multiple_agents(model, agents_to_train_against, episodes_per_agent=5000):
-    """Entraîne le modèle contre plusieurs agents successivement."""
-    for agent_name, agent_creator in agents_to_train_against.items():
-        print(f"\n🎯 Entraînement contre {agent_name}...")
+def train_against_multiple_agents_mixed(model, agents_to_train_against, nb_changement_agents = 300,  episodes_per_agent = 200):
+    """Entraîne contre tous les agents en mélangeant les épisodes."""
+    all_agents = list(agents_to_train_against.values())
+    
+    for episode in range(episodes_per_agent * nb_changement_agents):
+        # Choisir un agent aléatoirement
+        agent_contre = random.choice(all_agents)()
         
+        # Entraînement normal
         model = load_trained_model("marelle_model_final.pth")
         trained_model = train_reinforce(
             env=MarelleEnv(),
             model=model,
-            agent_contre=agent_creator(),
+            agent_contre=agent_contre,
             num_episodes=episodes_per_agent
         )
         torch.save(trained_model.state_dict(), "marelle_model_final.pth")
         
-        print(f"✅ Entraînement contre {agent_name} terminé")
+        print(f"Entraînement contre {agent_contre.name} terminé")
 
 if __name__ == "__main__":
     # Configuration des agents d'entraînement
@@ -146,8 +140,9 @@ if __name__ == "__main__":
         "smart": AGENTS["smart"], 
         "ml_again": AGENTS["ml"],
         "offensif": AGENTS["offensif"],
-        "ml_again2": AGENTS["ml"]
+        "ml_again2": AGENTS["ml"],
+        "defensif": AGENTS["defensif"],
     }
     
     # Entraînement séquentiel
-    train_against_multiple_agents(model=None, agents_to_train_against=training_agents)
+    train_against_multiple_agents_mixed(model=None, agents_to_train_against=training_agents)
