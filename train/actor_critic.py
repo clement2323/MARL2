@@ -11,7 +11,7 @@ from marelle_agents.agents import BaseAgent
 from marelle_agents.strategies import ModelStrategy
 from environnement.marelle_env import MarelleEnv
 from marelle_agents.agent_configs import AGENTS
-
+from marelle_agents.modeles import ActorCriticModel
 # -------------------------
 # Rewards
 # -------------------------
@@ -43,34 +43,10 @@ def save_env_state(env):
     return env_copy
 
 # -------------------------
-# Model 2-head Actor–Critic
-# -------------------------
-class ActorCriticModel(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.shared_layers = nn.Sequential(
-            nn.Linear(24, 64),
-            nn.ReLU(),
-            nn.Linear(64, 64),
-            nn.ReLU()
-        )
-        # Actor heads
-        self.actor_place = nn.Linear(64, 24)
-        self.actor_remove = nn.Linear(64, 24)
-        # Critic
-        self.critic = nn.Linear(64, 1)
-
-    def forward(self, x):
-        x = self.shared_layers(x)
-        logits_place = self.actor_place(x)
-        logits_remove = self.actor_remove(x)
-        value = self.critic(x)
-        return logits_place, logits_remove, value
-
-# -------------------------
 # Entraînement
 # -------------------------
 def train_actor_critic(
+    model_path_train = None,
     model_path="save_models/marelle_model_actor_critic.pth",
     agents_to_train_against=None,
     total_episodes=30000,
@@ -85,6 +61,17 @@ def train_actor_critic(
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
     model = ActorCriticModel().to(device)
+
+     # Charger un modèle existant si chemin fourni
+    if model_path_train is not None and os.path.exists(model_path_train):
+        print(f"[LOAD] Chargement du modèle depuis {model_path_train}")
+        model.load_state_dict(torch.load(model_path_train, map_location=device))
+    else:
+        if model_path_train:
+            print(f"[WARN] Aucun fichier trouvé à {model_path_train}, initialisation d'un nouveau modèle")
+        else:
+            print("[INIT] Nouveau modèle, pas de chemin de chargement fourni")
+            
     optimizer = optim.Adam(model.parameters(), lr=lr)
     gamma = 0.99
 
@@ -224,7 +211,7 @@ if __name__ == "__main__":
     model, stats, overall = train_actor_critic(
         model_path="save_models/marelle_model_actor_critic_2heads.pth",
         agents_to_train_against=training_agents,
-        total_episodes=30000,
+        total_episodes=500000,
         lr=1e-3,
         exploration_epsilon=0.15,
         switch_every=1,

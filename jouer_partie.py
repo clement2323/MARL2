@@ -19,6 +19,7 @@ def main():
     print("5. Jouer contre DefensiveAgent")
     print("6. Jouer contre SmartAgent")
     print("7. Modèle ML !")
+    print("8. Modèle AC !")
     
     choice = input("Choisissez le mode (1-7): ")
     
@@ -77,6 +78,14 @@ def main():
         print("Vous jouez contre le modèle ! (Rouge)")
         plt.close('all')
         play_with_clicks_against_agent(AGENTS["ml"](), 1)
+
+
+    elif choice == "8":
+        # Contre SmartAgent
+        print("Vous jouez contre le modèle ! (Rouge)")
+        plt.close('all')
+        play_with_clicks_against_agent(AGENTS["ac"](), 1)
+        
         
     else:
         print("Choix invalide")

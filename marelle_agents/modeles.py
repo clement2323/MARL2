@@ -23,3 +23,30 @@ class MarelleDualHeadNet(nn.Module):
         logits_remove = self.head_remove(x) # distribution brute pour retrait
 
         return logits_place, logits_remove
+
+
+# -------------------------
+# Model 2-head Actor–Critic
+# -------------------------
+class ActorCriticModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.shared_layers = nn.Sequential(
+            nn.Linear(24, 64),
+            nn.ReLU(),
+            nn.Linear(64, 64),
+            nn.ReLU()
+        )
+        # Actor heads
+        self.actor_place = nn.Linear(64, 24)
+        self.actor_remove = nn.Linear(64, 24)
+        # Critic
+        self.critic = nn.Linear(64, 1)
+
+    def forward(self, x):
+        x = self.shared_layers(x)
+        logits_place = self.actor_place(x)
+        logits_remove = self.actor_remove(x)
+        value = self.critic(x)
+        return logits_place, logits_remove, value
+
