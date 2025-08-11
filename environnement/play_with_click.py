@@ -177,6 +177,9 @@ def play_with_clicks_against_agent(agent, agent_player=1):
     def force_agent_turn():
         """Fait jouer l'agent tant que c'est son tour"""
         while env.current_player == agent_player and not env.is_phase1_over():
+            # Délai avant que l'agent joue pour simuler la réflexion
+            plt.pause(1)  # Pause de 1 seconde qui garde l'interface réactive
+            
             agent_move = agent.choose_move(env)
             
             if env.waiting_for_removal:
@@ -188,9 +191,9 @@ def play_with_clicks_against_agent(agent, agent_player=1):
                 game_logger.log_move("Agent", "placement", agent_move, env)
                 print(f"L'agent a joué sur la position {agent_move}")
 
-            # Rafraîchir l'affichage après chaque coup de l'agent
+            # Rafraîchir l'affichage immédiatement pour montrer le coup de l'agent
             refresh_display()
-
+           
             if env.is_phase1_over():
                 winner = env.get_winner()
                 game_logger.end_game(winner)
@@ -227,7 +230,8 @@ def play_with_clicks_against_agent(agent, agent_player=1):
                 env.remove_pawn(closest_node)
                 game_logger.log_move("Humain", "retrait", closest_node, env)
                 print(f"Vous avez retiré le pion en {closest_node}")
-                
+                refresh_display()
+            
                 if env.is_phase1_over():
                     winner = env.get_winner()
                     game_logger.end_game(winner)
@@ -241,7 +245,7 @@ def play_with_clicks_against_agent(agent, agent_player=1):
             env.play_move(closest_node)
             game_logger.log_move("Humain", "placement", closest_node, env)
             print(f"Vous avez placé un pion en {closest_node}")
-            
+            refresh_display()
             if env.is_phase1_over():
                 winner = env.get_winner()
                 game_logger.end_game(winner)
