@@ -7,7 +7,7 @@ from environnement.visualisation import plot_marelle
 from environnement.marelle_env import MarelleEnv
 
 class GameLogger:
-    def __init__(self, filename="game_logs.csv"):
+    def __init__(self, filename="logs/game_logs.csv"):
         self.filename = filename
         self.game_id = None
         self.moves = []

@@ -27,7 +27,7 @@ def create_smart_agent():
         name="smart"
     )
 
-def create_ml_agent(model_path="marelle_model_final.pth", device=None):
+def create_ml_agent(model_path="save_models/marelle_model_final.pth", device=None):
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
     

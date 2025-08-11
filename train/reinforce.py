@@ -10,11 +10,46 @@ from collections import deque
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from marelle_agents.agents import BaseAgent
-from marelle_agents.strategies import ModelStrategy, greedy_placement, SmartRemoval
+from marelle_agents.strategies import ModelStrategy
 from marelle_agents.modeles import MarelleDualHeadNet
 from environnement.marelle_env import MarelleEnv
 from marelle_agents.agent_configs import AGENTS
 
+
+def calculate_turn_reward(env_before, env_after, player_id):
+    """
+    Calcule le reward pour un tour complet d'un joueur.
+    
+    Args:
+        env_before: Environnement avant le tour
+        env_after: Environnement après le tour
+        player_id: l'id selon lequel on évalue la situation
+    
+    Returns:
+        float: Reward total pour ce tour
+    """
+    reward = 0.0
+    
+    # Compter les moulins avant et après
+    moulins_j1_avant = sum(1 for mill in env_before.mills if all(env_before.G.nodes[n]["state"] == 1 for n in mill))
+    moulins_j2_avant = sum(1 for mill in env_before.mills if all(env_before.G.nodes[n]["state"] == -1 for n in mill))
+    
+    moulins_j1_apres = sum(1 for mill in env_after.mills if all(env_after.G.nodes[n]["state"] == 1 for n in mill))
+    moulins_j2_apres = sum(1 for mill in env_after.mills if all(env_after.G.nodes[n]["state"] == -1 for n in mill))
+    
+    # Reward pour formation de moulins
+    if player_id == 1:  # Joueur 1
+        if moulins_j1_apres > moulins_j1_avant:
+            reward += 0.1 * (moulins_j1_apres - moulins_j1_avant)
+        if moulins_j2_apres > moulins_j2_avant:
+            reward -= 0.1 * (moulins_j2_apres - moulins_j2_avant)
+    else:  # Joueur 2
+        if moulins_j2_apres > moulins_j2_avant:
+            reward += 0.1 * (moulins_j2_apres - moulins_j2_avant)
+        if moulins_j1_apres > moulins_j1_avant:
+            reward -= 0.1 * (moulins_j1_apres - moulins_j1_avant)
+    
+    return reward
 
 
 def train_reinforce(env, model, agent_contre, num_episodes=1000, lr=0.001):
@@ -24,19 +59,12 @@ def train_reinforce(env, model, agent_contre, num_episodes=1000, lr=0.001):
     loss_history = deque(maxlen=100)
     winner_history = deque(maxlen=100)
 
-    best_loss = float("inf")
-    best_model_state = None
-
     device_selected = "cuda" if torch.cuda.is_available() else "cpu"
     model.to(device_selected)
 
     for episode in range(num_episodes):
         env = MarelleEnv()
         
-        # Variables pour tracker les moulins
-        moulins_j1_avant = 0
-        moulins_j2_avant = 0
-
         # Agent ML
         placement_strategy = ModelStrategy(model, player_id=1, mode="placement", device=device_selected)
         removal_strategy = ModelStrategy(model, player_id=1, mode="removal", device=device_selected)
@@ -44,11 +72,16 @@ def train_reinforce(env, model, agent_contre, num_episodes=1000, lr=0.001):
 
         log_probs, rewards = [], []
 
+        reward_turn = 0  
         while not env.is_phase1_over():
-            # Compter les moulins avant le coup
-            moulins_j1_avant = sum(1 for mill in env.mills if all(env.G.nodes[n]["state"] == 1 for n in mill))
-            moulins_j2_avant = sum(1 for mill in env.mills if all(env.G.nodes[n]["state"] == -1 for n in mill))
+            # Sauvegarder l'état avant le tour
+            env_before = MarelleEnv()
+            env_before.G = env.G.copy()
+            env_before.current_player = env.current_player
+            env_before.waiting_for_removal = env.waiting_for_removal
+            env_before.pawns_to_place = env.pawns_to_place.copy()
             
+
             current_agent = agent_ml if env.current_player == 1 else agent_contre
             move = current_agent.choose_move(env)
 
@@ -63,8 +96,9 @@ def train_reinforce(env, model, agent_contre, num_episodes=1000, lr=0.001):
                     probs = F.softmax(logits_remove + mask, dim=-1)
                     log_prob = torch.log(probs[0, move] + 1e-8)
                     log_probs.append(log_prob)
+                    rewards.append(0)
                     # Reward immédiat pour le retrait
-                    rewards.append(0.0)  # Ajouter reward même pour retrait
+                    # Ajouter reward même pour retrait
                 env.remove_pawn(move)
 
             else:
@@ -78,25 +112,19 @@ def train_reinforce(env, model, agent_contre, num_episodes=1000, lr=0.001):
                     probs = F.softmax(logits_place + mask, dim=-1)
                     log_prob = torch.log(probs[0, move] + 1e-8)
                     log_probs.append(log_prob)
-                    
-                    # Reward immédiat pour le placement
                     env.play_move(move)
+                    reward_turn += calculate_turn_reward(env_before = env_before,env_after = env,player_id= 1)
                     
-                    # Compter les moulins après le coup
-                    moulins_j1_apres = sum(1 for mill in env.mills if all(env.G.nodes[n]["state"] == 1 for n in mill))
-                    moulins_j2_apres = sum(1 for mill in env.mills if all(env.G.nodes[n]["state"] == -1 for n in mill))
-                    
-                    # Reward immédiat pour les moulins
-                    if moulins_j1_apres > moulins_j1_avant:
-                        rewards.append(0.1)
-                    elif moulins_j2_apres > moulins_j2_avant:
-                        rewards.append(-0.1)
-                    else:
-                        rewards.append(0.0)
                 else:
                     env.play_move(move)
-                    # Pas de reward quand l'adversaire joue
+                    reward_turn += calculate_turn_reward(env_before = env_before,env_after = env,player_id=1)
+                    rewards.append(reward_turn)
+                    reward_turn = 0 # je réinitialise seulement après le ^placemetde l'adversaire, 0 points sont générés en suppression
 
+                 # le réseau joue ne premier pour le moemnt
+               
+                # Si pas de suppression en attente, c'est la fin du tour
+               
         # Reward final basé sur get_winner()
         winner = env.get_winner()
         final_reward = 1 if winner == 1 else -1 if winner == -1 else 0
@@ -133,7 +161,7 @@ def train_reinforce(env, model, agent_contre, num_episodes=1000, lr=0.001):
 
     return model
 
-def load_trained_model(model_path="marelle_model_final.pth", device=None):
+def load_trained_model(model_path="save_models/marelle_model_final.pth", device=None):
     """Charge un modèle entraîné depuis un fichier."""
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -163,19 +191,19 @@ def train_against_multiple_agents_mixed(model_path, agents_to_train_against, nb_
             agent_contre=agent_contre,
             num_episodes=episodes_per_agent
         )
-        torch.save(trained_model.state_dict(), "marelle_model_final.pth")
+        torch.save(trained_model.state_dict(), "save_models/marelle_model_final.pth")
         
         #print(f"Entraînement contre {agent_contre.name} terminé")
 
 if __name__ == "__main__":
     # Configuration des agents d'entraînement
     training_agents = {
-        "ml": lambda: AGENTS["ml"]("marelle_model_final_1.pth"),
-        "ml_again": lambda: AGENTS["ml"]("marelle_model_final_2.pth"),
-        "ml_again2": lambda: AGENTS["ml"]("marelle_model_final_3.pth"),
+        "ml": lambda: AGENTS["ml"]("save_models/marelle_model_final_1.pth"),
+        "ml_again": lambda: AGENTS["ml"]("save_models/marelle_model_final_2.pth"),
+        "ml_again2": lambda: AGENTS["ml"]("save_models/marelle_model_final_3.pth"),
     }
     
     
     # Entraînement séquentiel
-    train_against_multiple_agents_mixed(model_path="marelle_model_final.pth", agents_to_train_against=training_agents)
+    train_against_multiple_agents_mixed(model_path="save_models/marelle_model_final.pth", agents_to_train_against=training_agents)
 

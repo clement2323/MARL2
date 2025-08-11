@@ -72,10 +72,10 @@ if __name__ == "__main__":
     agent_offensif = AGENTS["offensif"]()
     agent_defensif = AGENTS["defensif"]()
     smart_agent = AGENTS["smart"]()
-    agent_ml= AGENTS["ml"](model_path="marelle_model_final.pth") 
-    agent_ml_1= AGENTS["ml"](model_path="marelle_model_final_1.pth")
-    agent_ml_2= AGENTS["ml"](model_path="marelle_model_final_2.pth")
-    agent_ml_3= AGENTS["ml"](model_path="marelle_model_final_3.pth")
+    agent_ml= AGENTS["ml"](model_path="save_models/marelle_model_final.pth") 
+    agent_ml_1= AGENTS["ml"](model_path="save_models/marelle_model_final_1.pth")
+    agent_ml_2= AGENTS["ml"](model_path="save_models/marelle_model_final_2.pth")
+    agent_ml_3= AGENTS["ml"](model_path="save_models/marelle_model_final_3.pth")
 
 
     agent_list = [agent_random, agent_defensif, agent_offensif, smart_agent, agent_ml_1, agent_ml_2, agent_ml_3,agent_ml]
