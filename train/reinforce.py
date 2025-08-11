@@ -52,7 +52,25 @@ def calculate_turn_reward(env_before, env_after, player_id):
     return reward
 
 
-def train_reinforce(env, model, agent_contre, num_episodes=1000, lr=0.001):
+def save_env_state(env):
+    """
+    Sauvegarde l'état actuel de l'environnement.
+    
+    Args:
+        env: Environnement à sauvegarder
+    
+    Returns:
+        MarelleEnv: Copie de l'environnement
+    """
+    env_copy = MarelleEnv()
+    env_copy.G = env.G.copy()
+    env_copy.current_player = env.current_player
+    env_copy.waiting_for_removal = env.waiting_for_removal
+    env_copy.pawns_to_place = env.pawns_to_place.copy()
+    return env_copy
+
+
+def train_reinforce(env, model, agent_contre, num_episodes=1000, lr=0.001, exploration_epsilon=0.1):
     optimizer = optim.Adam(model.parameters(), lr=lr)
     gamma = 0.99
 
@@ -65,7 +83,6 @@ def train_reinforce(env, model, agent_contre, num_episodes=1000, lr=0.001):
     for episode in range(num_episodes):
         env = MarelleEnv()
         
-        # Agent ML
         placement_strategy = ModelStrategy(model, player_id=1, mode="placement", device=device_selected)
         removal_strategy = ModelStrategy(model, player_id=1, mode="removal", device=device_selected)
         agent_ml = BaseAgent(1, placement_strategy, removal_strategy)
@@ -73,58 +90,64 @@ def train_reinforce(env, model, agent_contre, num_episodes=1000, lr=0.001):
         log_probs, rewards = [], []
 
         reward_turn = 0  
+       
         while not env.is_phase1_over():
             # Sauvegarder l'état avant le tour
-            env_before = MarelleEnv()
-            env_before.G = env.G.copy()
-            env_before.current_player = env.current_player
-            env_before.waiting_for_removal = env.waiting_for_removal
-            env_before.pawns_to_place = env.pawns_to_place.copy()
+            env_before = save_env_state(env)
             
-
             current_agent = agent_ml if env.current_player == 1 else agent_contre
-            move = current_agent.choose_move(env)
-
-            if env.waiting_for_removal:
-                if env.current_player == 1:
-                    state = torch.tensor(
+            # exploration ici.. # ici on peut choisir un mauvais move pour exploration, 
+        # Gestion des log_probs et rewards pour le joueur ML
+            if env.current_player == 1:
+                
+                state = torch.tensor(
                         placement_strategy.encode_state(env),
                         dtype=torch.float32, device=device_selected
                     ).unsqueeze(0)
+   
+                if env.waiting_for_removal:
+                    if random.random() < exploration_epsilon:
+                        # Exploration : coup aléatoire
+                        move = random.choice(env.get_removable_pawns())
+                    else:
+                        # Exploitation : coup du modèle
+                        move = current_agent.choose_move(env)
+                    # Suppression
                     _, logits_remove = model(state)
                     mask = placement_strategy._create_action_mask(env.get_removable_pawns(), 24)
                     probs = F.softmax(logits_remove + mask, dim=-1)
                     log_prob = torch.log(probs[0, move] + 1e-8)
                     log_probs.append(log_prob)
-                    rewards.append(0)
-                    # Reward immédiat pour le retrait
-                    # Ajouter reward même pour retrait
-                env.remove_pawn(move)
-
-            else:
-                if env.current_player == 1:
-                    state = torch.tensor(
-                        placement_strategy.encode_state(env),
-                        dtype=torch.float32, device=device_selected
-                    ).unsqueeze(0)
+                    rewards.append(0)  # Pas de reward pour la suppression
+                    
+                    env.remove_pawn(move)
+                else:
+                    if random.random() < exploration_epsilon:
+                        # Exploration : coup aléatoire
+                        move = random.choice(env.get_legal_moves())
+                    else:
+                        # Exploitation : coup du modèle
+                        move = current_agent.choose_move(env)
+                    # Placement
                     logits_place, _ = model(state)
                     mask = placement_strategy._create_action_mask(env.get_legal_moves(), 24)
                     probs = F.softmax(logits_place + mask, dim=-1)
                     log_prob = torch.log(probs[0, move] + 1e-8)
                     log_probs.append(log_prob)
-                    env.play_move(move)
-                    reward_turn += calculate_turn_reward(env_before = env_before,env_after = env,player_id= 1)
                     
+                    env.play_move(move)
+                    reward_turn += calculate_turn_reward(env_before, env, player_id=1)
+            else:
+                
+                move = current_agent.choose_move(env)
+                # Adversaire joue
+                if env.waiting_for_removal:
+                    env.remove_pawn(move)
                 else:
                     env.play_move(move)
-                    reward_turn += calculate_turn_reward(env_before = env_before,env_after = env,player_id=1)
+                    reward_turn += calculate_turn_reward(env_before, env, player_id=1)
                     rewards.append(reward_turn)
-                    reward_turn = 0 # je réinitialise seulement après le ^placemetde l'adversaire, 0 points sont générés en suppression
-
-                 # le réseau joue ne premier pour le moemnt
-               
-                # Si pas de suppression en attente, c'est la fin du tour
-               
+                    reward_turn = 0  # Reset après le tour de l'adversaire 
         # Reward final basé sur get_winner()
         winner = env.get_winner()
         final_reward = 1 if winner == 1 else -1 if winner == -1 else 0
