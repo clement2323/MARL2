@@ -40,7 +40,7 @@ def create_ml_agent(model_path="marelle_model_final.pth", device=None):
         player_id=1,
         placement_strategy=ModelStrategy(model, 1, mode="placement", device=device),
         removal_strategy=ModelStrategy(model, 1, mode="removal", device=device),
-        name="ML Agent"
+        name="ML Agent "+model_path
     )
 
 # Dictionnaire de tous les agents

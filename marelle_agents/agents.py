@@ -2,7 +2,7 @@ import random
 
 class BaseAgent:
     def __init__(self, player_id, placement_strategy=None, removal_strategy=None, name=None):
-        self.player_id = player_id
+        self.player_id = player_id # n'infmllue pas sur le tour de jeu etc*.. l'agzent joue quand c'est son tour géré dans environneme t
         self.placement_strategy = placement_strategy or self.random_placement
         self.removal_strategy = removal_strategy or self.random_removal
         self.name = name if name else self.__class__.__name__

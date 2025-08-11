@@ -6,12 +6,6 @@ from marelle_agents.strategies import SmartPlacement, SmartRemoval, ModelStrateg
 from marelle_agents.modeles import MarelleDualHeadNet
 from marelle_agents.agent_configs import AGENTS
 
-# Agent totalement random
-agent_random = AGENTS["random"]()
-agent_offensif = AGENTS["offensif"]()
-agent_defensif = AGENTS["defensif"]()
-smart_agent = AGENTS["smart"]()
-agent_ml= AGENTS["ml"]()
 
 def play_match(agent1, agent2, num_games=1000):
     """Joue num_games parties entre deux agents et renvoie (victoires_agent1, victoires_agent2, nuls)"""
@@ -29,11 +23,11 @@ def play_match(agent1, agent2, num_games=1000):
         env.reset()
 
         while not env.is_phase1_over():
-            if env.waiting_for_removal:
-                move = agents[env.current_player].removal_strategy(env, env.get_removable_pawns())
+            move = agents[env.current_player].choose_move(env)
+
+            if env.waiting_for_removal:    
                 env.remove_pawn(move)
             else:
-                move = agents[env.current_player].placement_strategy(env, env.get_legal_moves())
                 env.play_move(move)
 
         # Comptage des pions restants pour désigner un vainqueur simple
@@ -72,5 +66,17 @@ def tournament(agent_list, num_games=100):
 
 
 if __name__ == "__main__":
-    agent_list = [agent_random, agent_defensif, agent_offensif, smart_agent, agent_ml]
-    tournament(agent_list, num_games=200)
+
+    # Agent totalement random
+    agent_random = AGENTS["random"]()
+    agent_offensif = AGENTS["offensif"]()
+    agent_defensif = AGENTS["defensif"]()
+    smart_agent = AGENTS["smart"]()
+    agent_ml= AGENTS["ml"](model_path="marelle_model_final.pth") 
+    agent_ml_1= AGENTS["ml"](model_path="marelle_model_final_1.pth")
+    agent_ml_2= AGENTS["ml"](model_path="marelle_model_final_2.pth")
+    agent_ml_3= AGENTS["ml"](model_path="marelle_model_final_3.pth")
+
+
+    agent_list = [agent_random, agent_defensif, agent_offensif, smart_agent, agent_ml_1, agent_ml_2, agent_ml_3,agent_ml]
+    tournament(agent_list, num_games=600)

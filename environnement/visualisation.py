@@ -10,9 +10,13 @@ def plot_marelle(G, moves=None, ax=None, removable_pawns=None):
     for n in G.nodes():
         s = G.nodes[n].get("state", 0)
         if s == 1:
-            colors.append("red")
+            # Colorer en orange si le pion rouge peut être supprimé
+            if removable_pawns and n in removable_pawns:
+                colors.append("orange")
+            else:
+                colors.append("red")
         elif s == -1:
-            # Colorer en orange si le pion peut être supprimé
+            # Colorer en orange si le pion bleu peut être supprimé
             if removable_pawns and n in removable_pawns:
                 colors.append("orange")
             else:
