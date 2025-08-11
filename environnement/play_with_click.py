@@ -201,6 +201,8 @@ def play_with_clicks_against_agent(agent, agent_player=1):
                 return
 
     def on_click(event):
+        if env.is_phase1_over():
+            return None
         if event.inaxes != ax:
             return
         

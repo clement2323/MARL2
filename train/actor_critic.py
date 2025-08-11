@@ -71,7 +71,7 @@ def train_actor_critic(
             print(f"[WARN] Aucun fichier trouvé à {model_path_train}, initialisation d'un nouveau modèle")
         else:
             print("[INIT] Nouveau modèle, pas de chemin de chargement fourni")
-            
+
     optimizer = optim.Adam(model.parameters(), lr=lr)
     gamma = 0.99
 
@@ -81,13 +81,15 @@ def train_actor_critic(
     stats_by_agent = {name: {"episodes": 0, "wins": 0, "losses": 0, "draws": 0}
                       for name in agents_to_train_against.keys()}
     overall = {"episodes": 0, "wins": 0, "losses": 0, "draws": 0}
-
+    first_player = 1
     for ep in range(1, total_episodes + 1):
         if (ep - 1) % switch_every == 0:
             selected_name = random.choice(list(agents_to_train_against.keys()))
             agent_contre = agents_to_train_against[selected_name]()
+            first_player *= -1
 
         env = MarelleEnv()
+        env.current_player = first_player
         placement_strategy = ModelStrategy(model, player_id=1, mode="placement", device=device)
         removal_strategy = ModelStrategy(model, player_id=1, mode="removal", device=device)
         agent_ml = BaseAgent(1, placement_strategy, removal_strategy)
@@ -205,15 +207,18 @@ def train_actor_critic(
 if __name__ == "__main__":
     training_agents = {
         "offensif": AGENTS["offensif"],
-        "defensif": AGENTS["defensif"]
+        "defensif": AGENTS["defensif"],
+        "ac": lambda: AGENTS["ac"](model_path="save_models/marelle_model_actor_critic_2heads.pth"),
+        "ac2": lambda: AGENTS["ac"](model_path="save_models/marelle_model_actor_critic_2heads copy 3.pth")
     }
 
     model, stats, overall = train_actor_critic(
+        model_path_train = "save_models/marelle_model_actor_critic_2heads.pth",
         model_path="save_models/marelle_model_actor_critic_2heads.pth",
         agents_to_train_against=training_agents,
         total_episodes=500000,
         lr=1e-3,
-        exploration_epsilon=0.15,
+        exploration_epsilon=0.10,
         switch_every=1,
         save_every=10000,
         log_every=1000

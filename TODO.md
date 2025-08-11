@@ -1,13 +1,12 @@
-# enregistrement systematique du modèle après un tour complet
-# actor critique
+# augmentation de données avec permutations !! 8 exemple en + à chaque fois, récupérr le loc probna de  la permutatione tc..
+# ~ reseaux de neurones plus gros ?
+# PPO !!
 # branchement avec mlflow
-# explorer autres logiques ML
-# rewarding mieux maitrisé ? faire un module associé
-# phase déplacement ....
-
-# reentrainer l'actor critiqc etc.. 
-# oprendre encompte les symétries, rejouer les parties (bien comprendre ?) 
+# phase déplacement  tri head pour le mouvement  :
 # exploration exploitation + fine ?
 # parcours arbre
-
-#MLFLOW, réfléchir à une stratégie pour que Actor critic s'affronte lui mêlme efficacement sans dégénérer.
+# tri head déplacement haha
+# MLFLOW, réfléchir à une stratégie pour que Actor critic s'affronte lui mêlme efficacement sans dégénérer.
+# packager le tout dans une application next hjns qui tapera sur le modèle en tant qu'api
+# github explication pour Tim
+# requirements

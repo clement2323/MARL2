@@ -102,7 +102,7 @@ class MarelleEnv:
         return [n for n, data in self.G.nodes(data=True) if data["state"] == 0]
 
     def is_phase1_over(self):
-        return self.pawns_to_place[1] == 0 and self.pawns_to_place[-1] == 0
+        return self.pawns_to_place[1] == 0 and self.pawns_to_place[-1] == 0 and self.waiting_for_removal == False
 
     def get_winner(self):
         """
