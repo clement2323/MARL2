@@ -67,6 +67,7 @@ def train_against_multiple_agents_mixed_v2(
     save_every=2000,
     log_every=500,
     device=None,
+    batch_size=10,
 ):
     """
     Entraîne un seul modèle contre plusieurs agents en *continu*.
@@ -96,6 +97,8 @@ def train_against_multiple_agents_mixed_v2(
     stats_by_agent = {name: {"episodes": 0, "wins": 0, "losses": 0, "draws": 0} for name in agents_to_train_against.keys()}
     overall = {"episodes": 0, "wins": 0, "losses": 0, "draws": 0}
 
+    batch_log_probs = []
+    batch_returns = []
     for ep in range(1, total_episodes + 1):
         # Choix d'adversaire (plus fréquent si switch_every petit)
         if (ep - 1) % switch_every == 0:
@@ -179,15 +182,21 @@ def train_against_multiple_agents_mixed_v2(
 
         returns = torch.tensor(returns, dtype=torch.float32, device=device)
         # Si plus de log_probs que returns (ou inverse), bout de sécurité
-        n = min(len(log_probs), len(returns))
-        log_probs_t = torch.stack(log_probs[:n])
-        returns_t = returns[:n]
+      
+        log_probs_t = torch.stack(log_probs)
+        returns_t = returns
 
         loss = -torch.sum(log_probs_t * returns_t)
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        batch_log_probs.extend(log_probs)
+        batch_returns.extend(returns.tolist())
+        if ep % batch_size == 0:
+            loss = -torch.sum(torch.stack(batch_log_probs) * torch.tensor(batch_returns, device=device))
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            batch_log_probs = []
+            batch_returns = []
 
         rolling_loss.append(loss.item())
         overall["episodes"] += 1
@@ -246,10 +255,11 @@ if __name__ == "__main__":
     training_agents = {
       #  "ml": lambda: AGENTS["ml"]("save_models/marelle_model_best.pth"),
         "offensif": AGENTS["offensif"],
+        "defensif": AGENTS["defensif"]
     }
 
     model, stats, overall = train_against_multiple_agents_mixed_v2(
-        model_path="save_models/marelle_model_final.pth",
+        model_path="save_models/marelle_model_final.pth", # TODO si NOne ajouté un model vide
         agents_to_train_against=training_agents,
         total_episodes=30000,
         lr=1e-3,
@@ -257,4 +267,5 @@ if __name__ == "__main__":
         switch_every=1,      # change d'adversaire chaque épisode
         save_every=10000,
         log_every=1000,
+        batch_size=50,
     )
