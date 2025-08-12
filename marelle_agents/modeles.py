@@ -50,3 +50,33 @@ class ActorCriticModel(nn.Module):
         value = self.critic(x)
         return logits_place, logits_remove, value
 
+
+class ActorCriticModelLarge(nn.Module):
+    """
+    Actor-Critic avec ~5x le nombre de paramètres de l'ActorCriticModel original.
+    Hidden size choisi : 176 (approx. 44k paramètres au total).
+    """
+    def __init__(self, input_size=24, hidden_size=176):
+        super().__init__()
+        # Tronc partagé
+        self.shared_layers = nn.Sequential(
+            nn.Linear(input_size, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU()
+        )
+        # Actor heads
+        self.actor_place = nn.Linear(hidden_size, input_size)
+        self.actor_remove = nn.Linear(hidden_size, input_size)
+        # Critic
+        self.critic = nn.Linear(hidden_size, 1)
+
+    def forward(self, x):
+        x = self.shared_layers(x)
+        logits_place = self.actor_place(x)
+        logits_remove = self.actor_remove(x)
+        value = self.critic(x)
+        return logits_place, logits_remove, value
+
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)

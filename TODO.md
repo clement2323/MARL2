@@ -1,3 +1,4 @@
+# ENREGISTREMENT AGENTS PRÉCÉDENTS PAR NOMBRE EPOCHS
 # augmentation de données avec permutations !! 8 exemple en + à chaque fois, récupérr le loc probna de  la permutatione tc..
 # ~ reseaux de neurones plus gros ?
 # PPO !!

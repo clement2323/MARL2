@@ -11,7 +11,8 @@ from marelle_agents.agents import BaseAgent
 from marelle_agents.strategies import ModelStrategy
 from environnement.marelle_env import MarelleEnv
 from marelle_agents.agent_configs import AGENTS
-from marelle_agents.modeles import ActorCriticModel
+from marelle_agents.modeles import ActorCriticModel, ActorCriticModelLarge
+
 # -------------------------
 # Rewards
 # -------------------------
@@ -46,7 +47,7 @@ def save_env_state(env):
 # Entraînement
 # -------------------------
 def train_actor_critic(
-    model_path_train = None,
+    model_path_train=None,
     model_path="save_models/marelle_model_actor_critic.pth",
     agents_to_train_against=None,
     total_episodes=30000,
@@ -55,14 +56,16 @@ def train_actor_critic(
     switch_every=1,
     save_every=2000,
     log_every=500,
+    add_self_every=30000,
+    max_agents=8,
     device=None
 ):
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    model = ActorCriticModel().to(device)
-
-     # Charger un modèle existant si chemin fourni
+    #model = ActorCriticModel().to(device)
+    model = ActorCriticModelLarge().to(device)
+    # Charger un modèle existant si chemin fourni
     if model_path_train is not None and os.path.exists(model_path_train):
         print(f"[LOAD] Chargement du modèle depuis {model_path_train}")
         model.load_state_dict(torch.load(model_path_train, map_location=device))
@@ -75,13 +78,15 @@ def train_actor_critic(
     optimizer = optim.Adam(model.parameters(), lr=lr)
     gamma = 0.99
 
-    if agents_to_train_against is None:
-        raise ValueError("agents_to_train_against doit être un dict non vide")
+    if agents_to_train_against is None or "offensif" not in agents_to_train_against:
+        raise ValueError("La liste agents_to_train_against doit contenir au moins 'offensif'")
 
+    dynamic_agents = []
     stats_by_agent = {name: {"episodes": 0, "wins": 0, "losses": 0, "draws": 0}
                       for name in agents_to_train_against.keys()}
     overall = {"episodes": 0, "wins": 0, "losses": 0, "draws": 0}
     first_player = 1
+
     for ep in range(1, total_episodes + 1):
         if (ep - 1) % switch_every == 0:
             selected_name = random.choice(list(agents_to_train_against.keys()))
@@ -186,6 +191,7 @@ def train_actor_critic(
             stats_by_agent[selected_name]["draws"] += 1
         stats_by_agent[selected_name]["episodes"] += 1
 
+        # Logging
         if ep % log_every == 0:
             w, l, d, total = overall["wins"], overall["losses"], overall["draws"], overall["episodes"]
             print(f"EP {ep}/{total_episodes} | W:{w/total*100:.1f}% L:{l/total*100:.1f}% D:{d/total*100:.1f}%")
@@ -194,32 +200,54 @@ def train_actor_critic(
                 if e > 0:
                     print(f"   - {name}: ep={e} W:{s['wins']/e*100:.1f}% L:{s['losses']/e*100:.1f}% D:{s['draws']/e*100:.1f}%")
 
+        # Sauvegarde périodique
         if ep % save_every == 0:
             os.makedirs(os.path.dirname(model_path), exist_ok=True)
             torch.save(model.state_dict(), model_path)
             print(f"[SAVE] Modèle sauvegardé -> {model_path} (ep {ep})")
+
+        # Ajout auto-modèle
+        if ep % add_self_every == 0:
+            self_model_path = f"save_models/marelle_model_self_{ep}.pth"
+            torch.save(model.state_dict(), self_model_path)
+            new_agent_name = f"self_{ep}"
+            agents_to_train_against[new_agent_name] = lambda p=self_model_path: AGENTS["ac"](model_path=p)
+            stats_by_agent[new_agent_name] = {"episodes": 0, "wins": 0, "losses": 0, "draws": 0}
+            dynamic_agents.append(new_agent_name)
+            print(f"[ADD] Nouvel agent ajouté : {new_agent_name}")
+
+            # Limiter à max_agents mais garder 'offensif'
+            while len(agents_to_train_against) > max_agents:
+                oldest = dynamic_agents.pop(0)
+                if oldest != "offensif":
+                    del agents_to_train_against[oldest]
+                    del stats_by_agent[oldest]
+                    print(f"[REMOVE] Agent le plus ancien retiré : {oldest}")
 
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
     torch.save(model.state_dict(), model_path)
     print("[DONE] Entraînement terminé. Modèle sauvegardé.")
     return model, stats_by_agent, overall
 
+# -------------------------
+# Main
+# -------------------------
 if __name__ == "__main__":
     training_agents = {
         "offensif": AGENTS["offensif"],
-        "defensif": AGENTS["defensif"],
-        "ac": lambda: AGENTS["ac"](model_path="save_models/marelle_model_actor_critic_2heads.pth"),
-        "ac2": lambda: AGENTS["ac"](model_path="save_models/marelle_model_actor_critic_2heads copy 3.pth")
-    }
+    #    "ac6": lambda: AGENTS["ac"](model_path="save_models/marelle_model_actor_critic_6.pth"),
+        }
 
     model, stats, overall = train_actor_critic(
-        model_path_train = "save_models/marelle_model_actor_critic_2heads.pth",
-        model_path="save_models/marelle_model_actor_critic_2heads.pth",
+        model_path_train=None,#"save_models/marelle_model_actor_critic_2heads.pth",
+        model_path="save_models/marelle_model_actor_critic_large.pth",
         agents_to_train_against=training_agents,
-        total_episodes=500000,
+        total_episodes=3_000_000,
         lr=1e-3,
         exploration_epsilon=0.10,
         switch_every=1,
-        save_every=10000,
-        log_every=1000
+        save_every=30000,
+        log_every=3000,
+        add_self_every=20000,
+        max_agents=4
     )
