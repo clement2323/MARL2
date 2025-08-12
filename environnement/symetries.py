@@ -30,35 +30,41 @@ def generate_symmetry_mappings():
 # Chaque liste donne, pour un index original, le nouvel index après transformation
 # Ces mappings doivent être calculés une fois à partir de ton layout (marelle_layout)
 SYMMETRY_MAPPINGS = generate_symmetry_mappings()
+# Assure-toi d'avoir ces imports en haut du fichier
 
-def apply_symmetry(state_vec, symmetry_name):
-    """Applique la symétrie à un vecteur d'état (taille 24)."""
-    mapping = SYMMETRY_MAPPINGS[symmetry_name]
-    return [state_vec[i] for i in mapping]
-
-def invert_action(action_idx, symmetry_name):
-    """Convertit un index d'action transformé vers l'index original."""
-    mapping = SYMMETRY_MAPPINGS[symmetry_name]
-    inverse_mapping = {new: orig for orig, new in enumerate(mapping)}
-    return inverse_mapping[action_idx]
-
-def random_symmetry(state_vec, action_idx=None):
-    """Applique une symétrie aléatoire. Retourne (nouvel état, nouvelle action, sym)"""
-    sym = random.choice(list(SYMMETRY_MAPPINGS.keys()))
-    new_state = apply_symmetry(state_vec, sym)
-    if action_idx is not None:
-        new_action = SYMMETRY_MAPPINGS[sym][action_idx]
-        return new_state, new_action, sym
-    return new_state, None, sym
-
-def augment_with_symmetries(state_vec, action_idx=None):
-    """Retourne la liste [(state_sym, action_sym, sym_name), ...] pour toutes les symétries."""
-    augmented = []
+# --- Helpers pour la canonicalisation (sémantique : mapping[new_index] = orig_index) ---
+def to_canonical(state_vec):
+    """
+    state_vec : séquence de longueur 24 (list/tuple/numpy/torch)
+    Retourne (canon_state_list, sym_name)
+    On suppose SYMMETRY_MAPPINGS[sym] est une liste length 24 telle que
+        state_sym[new_index] = state_orig[ SYMMETRY_MAPPINGS[sym][new_index] ]
+    """
+    s = list(state_vec)
+    best = None
+    best_sym = None
     for sym_name, mapping in SYMMETRY_MAPPINGS.items():
-        state_sym = [state_vec[i] for i in mapping]
-        if action_idx is not None:
-            action_sym = mapping[action_idx]
-        else:
-            action_sym = None
-        augmented.append((state_sym, action_sym, sym_name))
-    return augmented
+        # build tuple for lexicographic compare
+        transformed = tuple(s[mapping[i]] for i in range(24))
+        if (best is None) or (transformed < best):
+            best = transformed
+            best_sym = sym_name
+    # return as list for downstream code expecting list-like
+    return list(best), best_sym
+
+def map_moves_to_canonical(legal_moves, sym_name):
+    """
+    legal_moves: list of original indices
+    returns list of canonical indices
+    """
+    mapping = SYMMETRY_MAPPINGS[sym_name]           # mapping[new] = orig
+    inverse = {orig: new for new, orig in enumerate(mapping)}  # orig -> new
+    return [inverse[m] for m in legal_moves]
+
+def map_move_from_canonical(canon_move_idx, sym_name):
+    """
+    canon_move_idx: index in canonical coordinate system (new index)
+    returns original index = mapping[new]
+    """
+    mapping = SYMMETRY_MAPPINGS[sym_name]  # mapping[new] = orig
+    return mapping[canon_move_idx]

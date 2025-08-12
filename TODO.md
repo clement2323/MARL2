@@ -14,3 +14,7 @@
 # elo system:) pour mesurer les modeles !!
 # construir e un offensif plus intelligent qui va chercher à) aligner des pions  directe dans  les angles etc..
 # MLFLOW!!
+
+# CLEANER absolument cette hoistoire d'id de turn, notamment dans le encode state qui rend les choses symetriques, ce que voit noir est en fait mis en négatif pour pas perdre d'info à cause du signe
+
+MCTS Monte CARLO TREE SURF !!

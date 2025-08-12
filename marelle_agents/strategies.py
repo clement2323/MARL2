@@ -2,6 +2,7 @@ import random
 import torch
 import torch.nn.functional as F
 
+from environnement.symetries import map_move_from_canonical, map_moves_to_canonical, to_canonical
 # ==== Stratégies de base ====
 def random_placement(env, legal_moves):
     return random.choice(legal_moves)
@@ -101,3 +102,45 @@ class ModelStrategy:
         for move in legal_moves:
             mask[move] = 0
         return mask
+
+# --- CanonicalModelStrategy : remplace ModelStrategy.__call__ (même signature) ---
+class CanonicalModelStrategy(ModelStrategy):
+    def __call__(self, env, moves):
+        """
+        env: environment
+        moves: list of legal moves in env (original indices)
+        Retourne action en indices réels (original index)
+        """
+        # 1) encode_state (hérité) -> état vu depuis la perspective du joueur (list)
+        state = self.encode_state(env)  # déjà en orientation self.player_id
+        # 2) canonicalize
+        canon_state, sym_used = to_canonical(state)
+        state_t = torch.tensor(canon_state, dtype=torch.float32, device=self.device).unsqueeze(0)
+
+        # 3) forward (gérer modèle actor-only ou actor+critic)
+        with torch.no_grad():
+            outputs = self.model(state_t)
+            # outputs peut être (logits_place, logits_remove) ou (logits_place, logits_remove, value)
+            if isinstance(outputs, (tuple, list)):
+                if len(outputs) == 3:
+                    logits_place, logits_remove, _ = outputs
+                elif len(outputs) == 2:
+                    logits_place, logits_remove = outputs
+                else:
+                    raise RuntimeError("Model returned unexpected number of outputs")
+            else:
+                raise RuntimeError("Model must return a tuple/list of tensors")
+
+            logits = logits_place if self.mode == "placement" else logits_remove
+
+            # 4) map legal moves -> canonical indices and mask
+            canon_moves = map_moves_to_canonical(moves, sym_used)
+            mask = self._create_action_mask(canon_moves, logits.shape[-1])  # uses existing helper
+            masked_logits = logits + mask
+            probs = F.softmax(masked_logits, dim=-1)
+
+            canon_action = torch.multinomial(probs, 1).item()
+
+        # 5) map canonical action back to original index and return
+        real_action = map_move_from_canonical(canon_action, sym_used)
+        return real_action

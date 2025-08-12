@@ -8,10 +8,11 @@ import sys
 
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from environnement.symetries import SYMMETRY_MAPPINGS
+from environnement.symetries import map_move_from_canonical, to_canonical, map_moves_to_canonical
 from marelle_agents.agents import BaseAgent
-from marelle_agents.strategies import ModelStrategy
+from marelle_agents.strategies import ModelStrategy, CanonicalModelStrategy
 from environnement.marelle_env import MarelleEnv
+
 from marelle_agents.agent_configs import AGENTS
 from marelle_agents.modeles import ActorCriticModel, ActorCriticModelLarge
 
@@ -45,40 +46,6 @@ def save_env_state(env):
     env_copy.pawns_to_place = env.pawns_to_place.copy()
     return env_copy
 
-def to_canonical(state_vec):
-    """
-    Retourne la forme canonique d'un état et le nom de la symétrie appliquée.
-    """
-    best_state = None
-    best_sym = None
-    
-    for sym_name, mapping in SYMMETRY_MAPPINGS.items():
-      
-        transformed = [state_vec[i] for i in mapping]
-        if (best_state is None) or (transformed < best_state):
-            best_state = transformed
-            best_sym = sym_name
-            
-
-    return best_state, best_sym
-
-
-def map_moves_to_canonical(legal_moves, sym_name):
-    """
-    Applique la symétrie donnée aux coups légaux.
-    """
-    mapping = SYMMETRY_MAPPINGS[sym_name]
-    return [mapping[m] for m in legal_moves]
-
-
-def map_move_from_canonical(move_idx, sym_name):
-    """
-    Transforme un coup choisi dans la base canonique
-    vers son index dans le plateau réel.
-    """
-    mapping = SYMMETRY_MAPPINGS[sym_name]
-    inverse_mapping = {new: orig for orig, new in enumerate(mapping)}
-    return inverse_mapping[move_idx]
 
 # -------------------------
 # Entraînement
@@ -132,17 +99,16 @@ def train_actor_critic(
 
         env = MarelleEnv()
         env.current_player = first_player
-        placement_strategy = ModelStrategy(model, player_id=1, mode="placement", device=device)
-        removal_strategy = ModelStrategy(model, player_id=1, mode="removal", device=device)
-        agent_ml = BaseAgent(1, placement_strategy, removal_strategy)
+        placement_strategy = CanonicalModelStrategy(model, player_id=1, mode="placement", device=device)
+#        removal_strategy = CanonicalModelStrategy(model, player_id=1, mode="removal", device=device)
+#       agent_ml = BaseAgent(1, placement_strategy, removal_strategy)
 
         log_probs, values, rewards = [], [], []
         reward_turn = 0.0
 
         while not env.is_phase1_over():
             env_before = save_env_state(env)
-            current_agent = agent_ml if env.current_player == 1 else agent_contre
-
+            
             if env.current_player == 1:
                 canon_state, sym_used = to_canonical(placement_strategy.encode_state(env))
                 
@@ -151,9 +117,6 @@ def train_actor_critic(
                     dtype=torch.float32, device=device
                 ).unsqueeze(0)
                 
-                
-
-
                 logits_place, logits_remove, value = model(canon_state)
 
                 if env.waiting_for_removal:
@@ -189,7 +152,7 @@ def train_actor_critic(
                     reward_turn = 0.0
 
             else:
-                move = current_agent.choose_move(env)
+                move = agent_contre.choose_move(env)
                 if env.waiting_for_removal:
                     env.remove_pawn(move)
                 else:
@@ -280,7 +243,7 @@ def train_actor_critic(
 if __name__ == "__main__":
     training_agents = {
         "offensif": AGENTS["offensif"],
-        "ac6": lambda: AGENTS["ac_large"](model_path="save_models/marelle_model_self_45000.pth"),
+        #"ac6": lambda: AGENTS["ac_large"](model_path="save_models/marelle_model_self_45000.pth"),
         }
 
     model, stats, overall = train_actor_critic(

@@ -1,5 +1,5 @@
 from .agents import BaseAgent
-from .strategies import ModelStrategy, greedy_placement, SmartPlacement, SmartRemoval, block_opponent
+from .strategies import ModelStrategy, greedy_placement, SmartPlacement, SmartRemoval, block_opponent, CanonicalModelStrategy
 from .modeles import MarelleDualHeadNet, ActorCriticModel,ActorCriticModelLarge
 
 import torch
@@ -46,7 +46,7 @@ def create_ml_agent(model_path="save_models/marelle_model_final.pth", device=Non
 
 
   
-def create_actor_critic_agent(model_path="save_models/marelle_model_actor_critic_2heads.pth", device=None):
+def create_actor_critic_agent(model_path="save_models/marelle_model_actor_critic_2heads.pth",id=1, device=None):
     """
     Charge un ActorCriticModel entraîné et crée un agent
     utilisant uniquement les deux têtes Actor (placement et removal),
@@ -81,19 +81,14 @@ def create_actor_critic_agent(model_path="save_models/marelle_model_actor_critic
 
     # Retourner un agent BaseAgent avec les deux stratégies ML
     return BaseAgent(
-        player_id=1,
-        placement_strategy=ModelStrategy(actor_model, 1, mode="placement", device=device),
-        removal_strategy=ModelStrategy(actor_model, 1, mode="removal", device=device),
+        player_id=id,
+        placement_strategy=ModelStrategy(actor_model, id, mode="placement", device=device),
+        removal_strategy=ModelStrategy(actor_model, id, mode="removal", device=device),
         name=f"ActorCritic Agent (Actor Only) [{model_path}]"
     )
 
-
-def create_actor_critic_agent_large(model_path="save_models/marelle_model_actor_critic_2heads.pth", device=None):
-    """
-    Charge un ActorCriticModel entraîné et crée un agent
-    utilisant uniquement les deux têtes Actor (placement et removal),
-    compatible avec ModelStrategy.
-    """
+# --- create_actor_critic_agent_large avec CanonicalModelStrategy intégré ---
+def create_actor_critic_agent_large(model_path="save_models/marelle_model_actor_critic_2heads.pth", id =1, device=None):
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -121,13 +116,17 @@ def create_actor_critic_agent_large(model_path="save_models/marelle_model_actor_
     actor_model = ActorOnlyModel(full_model).to(device)
     actor_model.eval()
 
-    # Retourner un agent BaseAgent avec les deux stratégies ML
+    # Utiliser la stratégie canonique (hérite de ModelStrategy mais override __call__)
+    placement_strategy = CanonicalModelStrategy(actor_model, player_id=id, device=device, mode="placement")
+    removal_strategy = CanonicalModelStrategy(actor_model, player_id=id, device=device, mode="removal")
+
     return BaseAgent(
-        player_id=1,
-        placement_strategy=ModelStrategy(actor_model, 1, mode="placement", device=device),
-        removal_strategy=ModelStrategy(actor_model, 1, mode="removal", device=device),
-        name=f"ActorCritic Agent (Actor Only) [{model_path}]"
+        player_id=id,
+        placement_strategy=placement_strategy,
+        removal_strategy=removal_strategy,
+        name=f"ActorCritic Agent (Actor Only + Canonical) [{model_path}]"
     )
+
 # Dictionnaire de tous les agents
 AGENTS = {
     "offensif": create_agent_offensif,
