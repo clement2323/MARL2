@@ -11,3 +11,5 @@
 # packager le tout dans une application next hjns qui tapera sur le modèle en tant qu'api
 # github explication pour Tim
 # requirements
+# elo system:) pour mesurer les modeles !!
+# MLFLOW!!

@@ -155,7 +155,7 @@ def train_actor_critic(
                     reward_turn = 0.0
 
         winner = env.get_winner()
-        final_reward = 1.0 if winner == 1 else -1.0 if winner == -1 else 0.0
+        final_reward = 1.0 if winner == 1 else -1.0 if winner == -1 else 0.5 # 0.5 for nul !!!! =signal
         rewards = [r + final_reward for r in rewards]
 
         # Compute returns
@@ -211,7 +211,7 @@ def train_actor_critic(
             self_model_path = f"save_models/marelle_model_self_{ep}.pth"
             torch.save(model.state_dict(), self_model_path)
             new_agent_name = f"self_{ep}"
-            agents_to_train_against[new_agent_name] = lambda p=self_model_path: AGENTS["ac"](model_path=p)
+            agents_to_train_against[new_agent_name] = lambda p=self_model_path: AGENTS["ac_large"](model_path=p)
             stats_by_agent[new_agent_name] = {"episodes": 0, "wins": 0, "losses": 0, "draws": 0}
             dynamic_agents.append(new_agent_name)
             print(f"[ADD] Nouvel agent ajouté : {new_agent_name}")
@@ -239,15 +239,15 @@ if __name__ == "__main__":
         }
 
     model, stats, overall = train_actor_critic(
-        model_path_train=None,#"save_models/marelle_model_actor_critic_2heads.pth",
+        model_path_train="save_models/marelle_model_actor_critic_large.pth",#None
         model_path="save_models/marelle_model_actor_critic_large.pth",
         agents_to_train_against=training_agents,
-        total_episodes=3_000_000,
+        total_episodes=5_000_000,
         lr=1e-3,
-        exploration_epsilon=0.10,
+        exploration_epsilon=0.05,
         switch_every=1,
         save_every=30000,
-        log_every=3000,
-        add_self_every=20000,
+        log_every=5000,
+        add_self_every=50000,
         max_agents=4
     )
