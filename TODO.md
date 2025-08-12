@@ -12,4 +12,5 @@
 # github explication pour Tim
 # requirements
 # elo system:) pour mesurer les modeles !!
+# construir e un offensif plus intelligent qui va chercher à) aligner des pions  directe dans  les angles etc..
 # MLFLOW!!

@@ -6,7 +6,9 @@ import torch.nn.functional as F
 import torch.optim as optim
 import sys
 
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from environnement.symetries import SYMMETRY_MAPPINGS
 from marelle_agents.agents import BaseAgent
 from marelle_agents.strategies import ModelStrategy
 from environnement.marelle_env import MarelleEnv
@@ -42,6 +44,41 @@ def save_env_state(env):
     env_copy.waiting_for_removal = env.waiting_for_removal
     env_copy.pawns_to_place = env.pawns_to_place.copy()
     return env_copy
+
+def to_canonical(state_vec):
+    """
+    Retourne la forme canonique d'un état et le nom de la symétrie appliquée.
+    """
+    best_state = None
+    best_sym = None
+    
+    for sym_name, mapping in SYMMETRY_MAPPINGS.items():
+      
+        transformed = [state_vec[i] for i in mapping]
+        if (best_state is None) or (transformed < best_state):
+            best_state = transformed
+            best_sym = sym_name
+            
+
+    return best_state, best_sym
+
+
+def map_moves_to_canonical(legal_moves, sym_name):
+    """
+    Applique la symétrie donnée aux coups légaux.
+    """
+    mapping = SYMMETRY_MAPPINGS[sym_name]
+    return [mapping[m] for m in legal_moves]
+
+
+def map_move_from_canonical(move_idx, sym_name):
+    """
+    Transforme un coup choisi dans la base canonique
+    vers son index dans le plateau réel.
+    """
+    mapping = SYMMETRY_MAPPINGS[sym_name]
+    inverse_mapping = {new: orig for orig, new in enumerate(mapping)}
+    return inverse_mapping[move_idx]
 
 # -------------------------
 # Entraînement
@@ -107,38 +144,46 @@ def train_actor_critic(
             current_agent = agent_ml if env.current_player == 1 else agent_contre
 
             if env.current_player == 1:
-                state = torch.tensor(
-                    placement_strategy.encode_state(env),
+                canon_state, sym_used = to_canonical(placement_strategy.encode_state(env))
+                
+                canon_state = torch.tensor(
+                    canon_state,
                     dtype=torch.float32, device=device
                 ).unsqueeze(0)
+                
+                
 
-                logits_place, logits_remove, value = model(state)
+
+                logits_place, logits_remove, value = model(canon_state)
 
                 if env.waiting_for_removal:
                     legal_moves = env.get_removable_pawns()
+                    canon_legal_moves = map_moves_to_canonical(legal_moves,sym_used)    
                     mask = torch.full((24,), float('-inf'), device=device)
-                    mask[legal_moves] = 0.0
+                    mask[canon_legal_moves] = 0.0
                     probs = F.softmax(logits_remove + mask, dim=-1)
                 else:
                     legal_moves = env.get_legal_moves()
+                    canon_legal_moves = map_moves_to_canonical(legal_moves,sym_used)    
                     mask = torch.full((24,), float('-inf'), device=device)
-                    mask[legal_moves] = 0.0
+                    mask[canon_legal_moves] = 0.0
                     probs = F.softmax(logits_place + mask, dim=-1)
 
                 if random.random() < exploration_epsilon:
-                    move = random.choice(legal_moves)
+                    canon_move = random.choice(canon_legal_moves)
                 else:
-                    move = torch.multinomial(probs, 1).item()
+                    canon_move = torch.multinomial(probs, 1).item()
 
-                log_prob = torch.log(probs[0, move] + 1e-8)
+                log_prob = torch.log(probs[0, canon_move] + 1e-8)
                 log_probs.append(log_prob)
                 values.append(value.squeeze())
+                real_move = map_move_from_canonical(canon_move, sym_used)
 
                 if env.waiting_for_removal:
-                    env.remove_pawn(move)
+                    env.remove_pawn(real_move)
                     rewards.append(0.0)
                 else:
-                    env.play_move(move)
+                    env.play_move(real_move)
                     reward_turn += calculate_turn_reward(env_before, env, player_id=1)
                     rewards.append(reward_turn)
                     reward_turn = 0.0
@@ -235,7 +280,7 @@ def train_actor_critic(
 if __name__ == "__main__":
     training_agents = {
         "offensif": AGENTS["offensif"],
-    #    "ac6": lambda: AGENTS["ac"](model_path="save_models/marelle_model_actor_critic_6.pth"),
+        "ac6": lambda: AGENTS["ac_large"](model_path="save_models/marelle_model_self_45000.pth"),
         }
 
     model, stats, overall = train_actor_critic(
@@ -245,9 +290,9 @@ if __name__ == "__main__":
         total_episodes=5_000_000,
         lr=1e-3,
         exploration_epsilon=0.05,
-        switch_every=1,
+        switch_every=10,
         save_every=30000,
-        log_every=5000,
-        add_self_every=50000,
-        max_agents=4
+        log_every=1000,
+        add_self_every=15000,
+        max_agents=3
     )
