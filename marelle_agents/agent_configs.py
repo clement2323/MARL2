@@ -88,7 +88,7 @@ def create_actor_critic_agent(model_path="save_models/marelle_model_actor_critic
     )
 
 # --- create_actor_critic_agent_large avec CanonicalModelStrategy intégré ---
-def create_actor_critic_agent_large(model_path="save_models/marelle_model_actor_critic_2heads.pth", id =1, device=None):
+def create_actor_critic_agent_large(model_path="save_models/marelle_model_actor_critic_large.pth", id =1, device=None):
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 

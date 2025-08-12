@@ -243,19 +243,19 @@ def train_actor_critic(
 if __name__ == "__main__":
     training_agents = {
         "offensif": AGENTS["offensif"],
-        #"ac6": lambda: AGENTS["ac_large"](model_path="save_models/marelle_model_self_45000.pth"),
+        "ac_small": lambda: AGENTS["ac"](model_path="save_models/marelle_model_actor_critic_2heads.pth"),
         }
 
     model, stats, overall = train_actor_critic(
         model_path_train="save_models/marelle_model_actor_critic_large.pth",#None
         model_path="save_models/marelle_model_actor_critic_large.pth",
         agents_to_train_against=training_agents,
-        total_episodes=5_000_000,
+        total_episodes=7_000_000,
         lr=1e-3,
-        exploration_epsilon=0.05,
+        exploration_epsilon=0.1,
         switch_every=10,
         save_every=30000,
-        log_every=1000,
-        add_self_every=15000,
-        max_agents=3
+        log_every=2000,
+        add_self_every=20000,
+        max_agents=4
     )

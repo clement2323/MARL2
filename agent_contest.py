@@ -1,9 +1,6 @@
 # tournament.py
 import itertools
 from environnement.marelle_env import MarelleEnv
-from marelle_agents.agents import BaseAgent
-from marelle_agents.strategies import SmartPlacement, SmartRemoval, ModelStrategy, greedy_placement, block_opponent
-from marelle_agents.modeles import MarelleDualHeadNet
 from marelle_agents.agent_configs import AGENTS
 
 
@@ -74,7 +71,8 @@ if __name__ == "__main__":
     smart_agent = AGENTS["smart"]()
     agent_ml= AGENTS["ml"](model_path="save_models/marelle_model_final.pth") 
     agent_ac= AGENTS["ac"]()
+    agent_ac_large= AGENTS["ac_large"]()
     
 
-    agent_list = [agent_random, agent_defensif, agent_offensif, smart_agent,agent_ac]
+    agent_list = [agent_offensif,agent_ac,agent_ac_large]
     tournament(agent_list, num_games=600)

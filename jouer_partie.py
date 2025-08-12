@@ -85,13 +85,13 @@ def main():
         # Contre SmartAgent
         print("Vous jouez contre le modèle ! (Rouge)")
         plt.close('all')
-        play_with_clicks_against_agent(AGENTS["ac"](), 1)
+        play_with_clicks_against_agent(AGENTS["ac_large"](), 1)
     
     elif choice == "9":
         # Contre SmartAgent
         print("Vous jouez contre le modèle ! (Bleu)")
         plt.close('all')
-        play_with_clicks_against_agent(AGENTS["ac"](), -1)
+        play_with_clicks_against_agent(AGENTS["ac_large"](), -1)
         
         
     else:
